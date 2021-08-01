@@ -25,6 +25,7 @@ export class AppComponent {
   }
 
   async loadWASM() {
+    // setup import values for the WASM module
     const importObject = {
       env: {
         abort(_msg: any, _file: any, line: any, column: any) {
@@ -32,12 +33,25 @@ export class AppComponent {
         }
       }
     };
-    const module: any = await WebAssembly.instantiateStreaming(
-      fetch("wasm/optimized.wasm"),
-      importObject
-    );      
-    const fib = module.instance.exports;
-    return fib;
+    // find the best available API to use
+    let module: any;
+    if (WebAssembly.instantiateStreaming) {
+      // new fancy streaming API
+      module = await WebAssembly.instantiateStreaming(
+        fetch("wasm/optimized.wasm"),
+        importObject
+      );
+    } else {
+      // older ArrayBuffer form
+      const wasmFile = await fetch("wasm/optimized.wasm");
+      const wasmBuffer = await wasmFile.arrayBuffer();
+      module = await WebAssembly.instantiate(
+        wasmBuffer,
+        importObject
+      );
+    }
+    const moduleFunctions = module.instance.exports;
+    return moduleFunctions;
   }
 
   runTest(implementation: Function, ...args: any) {
